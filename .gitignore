@@ -1,0 +1,20 @@
+# Bijan Sondossi
+# .gitignore
+
+*
+
+.DS_Store
+!.gitignore
+!init.el
+!notes
+!notes/**
+!settings
+!settings/**
+!packages
+!packages/smalltalk-mode.el
+!README.md
+
+**/*.elc
+**/.DS_Store
+
+# end .gitignore
