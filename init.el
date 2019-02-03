@@ -1,6 +1,6 @@
 ;; Bijan Sondossi
-;; file: init.el
-;; info: Emacs config file
+;; init.el
+;; Emacs config file
 
 ;; Required package stuff ----------------------------------------------
 
@@ -28,7 +28,6 @@
 
 ;; Keywords: https://jwiegley.github.io/use-package/keywords/
 
-;; Installation
 (unless (require 'use-package nil t)
   (if (eq system-type 'darwin)
       (let ((git-command "git clone")
@@ -45,30 +44,34 @@
     (package-refresh-contents)
     (package-install 'use-package)))
 
-;; Use package settings
 (setq use-package-always-ensure t)
 (setq use-package-always-defer t)
+
+;; Configuration files -------------------------------------------------
+
+(defun bijans/emacs-d-file (filename)
+  "Appends a filename to the user-emacs-directory"
+  (concat user-emacs-directory filename))
+
+(defvar bijans/config-dir
+  (bijans/emacs-d-file "config")
+  "Custom configurations directory.")
+
+(defun bijans/load-config (filename)
+  "Loads a config file from bijans/config-dir"
+  (load (concat bijans/config-dir "/" filename)))
 
 (use-package benchmark-init
   :disabled
   :demand
-  :config (add-hook 'after-init-hook 'benchmark-init/deactivate))
+  :config
+  (add-hook 'after-init-hook
+            (lambda ()
+              (benchmark-init/deactivate)
+              (benchmark-init/show-durations-tabulated))))
 
-;; Other config files --------------------------------------------------
-
-(load "~/.emacs.d/settings/defaults")
-(load "~/.emacs.d/settings/bindings")
-(load "~/.emacs.d/settings/packages")
-(load "~/.emacs.d/settings/functions")
-;; should add this to hook
-(when (display-graphic-p) (load "~/.emacs.d/settings/faces"))
-(load "~/.emacs.d/settings/late")
-
-;; Temporary settings --------------------------------------------------
-
-(use-package markdown-mode :mode ("\\.md\\'" . markdown-mode))
-(use-package cmake-mode :demand)
-(use-package yaml-mode :mode ("\\.yml\\'" . yaml-mode))
-(add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
-
-;; end init.el
+(bijans/load-config "defaults")
+(bijans/load-config "faces")
+(bijans/load-config "functions")
+(bijans/load-config "packages")
+(bijans/load-config "late")

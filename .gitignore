@@ -8,8 +8,8 @@
 !init.el
 !notes
 !notes/**
-!settings
-!settings/**
+!config
+!config/**
 !packages
 !packages/smalltalk-mode.el
 !README.md
