@@ -35,6 +35,39 @@
 (defvar bijans/toggle-map (make-sparse-keymap) "Toggle shortcuts.")
 (defvar bijans/window-map (make-sparse-keymap) "Window shortcuts.")
 
+;; Functions -----------------------------------------------------------
+
+(defun bijans/ssh-edit (login file)
+  "Edit user@host:file via SSH."
+  (let ((ssh-method "/ssh:"))
+    ;; https://www.emacswiki.org/emacs/Tramp_on_Windows
+    (when (eq system-type 'windows-nt) (setq ((ssh-method "/plink:"))))
+    (dired (concat ssh-method login ":" file))))
+
+(defun bijans/ssh-edit-file (login file)
+  "Interactive ssh-edit wrapper."
+  (interactive "sEnter user@host (or identity): \nsFile: ")
+  (bijans/ssh-edit login file))
+
+(defun bijans/ssh (login)
+  "Opens an ssh session at the $HOME directory of 'login'."
+  (interactive "sEnter user@host (or identity): ")
+  (bijans/ssh-edit login "~"))
+
+(defun bijans/make-tags (dir-name)
+  "Create tags file."
+  (interactive "DDirectory: ")
+  (shell-command
+   (format "%s -e -f TAGS -R %s" bijans/ctags-path
+           (directory-file-name dir-name))))
+
+(defun bijans/read-lines (filePath)
+  "Return a list of lines of a file at filePath. Source: \
+   http://ergoemacs.org/emacs/elisp_read_file_content.html"
+  (with-temp-buffer
+    (insert-file-contents filePath)
+    (split-string (buffer-string) "\n" t)))
+
 ;; Default bindings ----------------------------------------------------
 
 (define-key bijans/buffer-map "k" 'kill-buffer)
@@ -105,3 +138,39 @@
 (setq tooltip-delay 99999)
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
+
+;; Faces ---------------------------------------------------------------
+
+(when (display-graphic-p)
+  (set-face-attribute 'default nil
+                      :family "Courier New"
+                      :height 90
+                      :weight 'normal)
+
+  (cond ((eq system-type 'darwin)
+         (set-face-attribute 'default nil :height 120)
+         (let ((default-family "Andale Mono")
+               (iosevka-font "Iosevka Term")
+               (iosevka-weight 'light))
+           (if (not (null (x-list-fonts iosevka-font)))
+               (set-face-attribute 'default nil
+                                   :font iosevka-font
+                                   :weight iosevka-weight)
+             (set-face-attribute 'default nil
+                                 :family default-family))))
+
+        ((eq system-type 'gnu/linux)
+         (let ((os-info "/etc/os-release")
+               (arch-os "arch")
+               (arch-family "Adobe Courier")
+               (ubuntu-os "ubuntu")
+               (ubuntu-family "Monospace")
+               (ubuntu-height 100))
+           (dolist (line (bijans/read-lines os-info))
+             (cond ((string-match-p arch-os line)
+                    (set-face-attribute 'default nil
+                                        :family arch-family))
+                   ((string-match-p ubuntu-os line)
+                    (set-face-attribute 'default nil
+                                        :family ubuntu-family
+                                        :height ubuntu-height))))))))

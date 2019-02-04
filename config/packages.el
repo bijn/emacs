@@ -46,7 +46,6 @@
 ;; Org mode ------------------------------------------------------------
 
 (use-package org
-  :ensure cl-lib
   :mode ("\\.org\\'" . org-mode)
   :bind (:map bijans/org-map ("a" . org-agenda))
   :general ("o" '(:keymap bijans/org-map :which-key "org"))
@@ -70,10 +69,16 @@
     (setq org-pretty-entities t)
     (setq org-tags-column 0))
 
-
   :config
   (when (eq system-type 'darwin)
-    (setq org-latex-create-formula-image-program 'imagemagick))
+    (setq org-latex-create-formula-image-program 'imagemagick)
+    (use-package cl
+      :demand
+      :ensure cl-lib)
+    (use-package org-drill
+      :demand
+      :ensure org-plus-contrib
+      :pin manual))
 
   (dolist (face '(org-level-1
                   org-level-2
@@ -88,6 +93,7 @@
 
 (use-package evil
   :demand
+  :after undo-tree
 
   :bind (:map evil-visual-state-map ("s" . evil-surround-region))
   :bind (:map evil-insert-state-map ("C-/" . evil-force-normal-state))
@@ -136,11 +142,10 @@
 ;; http://tinyurl.com/hofdfv8
 
 (use-package ivy
-  :bind (:map ivy-minibuffer-map
-              ("C-j" . ivy-next-line)
-              ("C-e" . ivy-next-line)
-              ("C-k" . ivy-previous-line)
-              ("C-y" . ivy-previous-line))
+  :bind
+  (:map ivy-minibuffer-map
+        ("C-j" . ivy-next-line)
+        ("C-k" . ivy-previous-line))
 
   :custom
   (ivy-use-virtual-buffers t)
@@ -249,14 +254,16 @@
     (save-window-excursion (recompile))))
 
 (use-package flycheck
+  :defer t ; not being deferred by bind keyword
   :bind (:map bijans/toggle-map ("f" . 'flycheck-mode)))
 
 (use-package flycheck-clang-tidy
   :hook (flycheck-mode-hook . flycheck-clang-tidy-setup))
 
 (use-package xcscope
-  :unless (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
+  :when (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
   :bind
+  (:map bijans/code-map ("f" . cscope-find-this-symbol))
   (:map bijans/code-map
         ("i" . (lambda ()
                  (interactive)
@@ -295,16 +302,12 @@
 
 (use-package treemacs
   :bind (:map bijans/toggle-map ("n" . treemacs))
-  ;; Change this later?
-  :bind (:map bijans/toggle-map ("N" . treemacs-projectile))
-  :custom (treemacs-no-png-images t)
-  :config
-  (use-package treemacs-projectile
-    :demand
-    :after treemacs projectile)
-  (use-package treemacs-magit
-    :demand
-    :after treemacs magit))
+  :custom (treemacs-no-png-images t))
+
+(use-package treemacs-evil :after treemacs evil)
+
+(use-package treemacs-projectile
+  :bind (:map bijans/toggle-map ("N" . treemacs-projectile)))
 
 (use-package projectile
   :config (projectile-mode))
@@ -350,6 +353,7 @@
   :mode (("\\.txt\\'" . cmake-mode) ("\\.cmake\\'" . cmake-mode)))
 
 (use-package docker
+  :disabled
   :ensure docker-tramp
   :ensure dockerfile-mode)
 

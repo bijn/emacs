@@ -45,7 +45,6 @@
     (package-install 'use-package)))
 
 (setq use-package-always-ensure t)
-(setq use-package-always-defer t)
 
 ;; Configuration files -------------------------------------------------
 
@@ -71,7 +70,5 @@
               (benchmark-init/show-durations-tabulated))))
 
 (bijans/load-config "defaults")
-(bijans/load-config "faces")
-(bijans/load-config "functions")
 (bijans/load-config "packages")
 (bijans/load-config "late")
