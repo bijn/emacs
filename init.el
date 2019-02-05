@@ -2,6 +2,16 @@
 ;; init.el
 ;; Emacs config file
 
+;; Some helpers --------------------------------------------------------
+
+(defun bijans/emacs-d-file (filename)
+  "Appends a filename to the user-emacs-directory"
+  (concat user-emacs-directory filename))
+
+(defun bijans/load-config (filename)
+  "Loads a config file from bijans/config-dir"
+  (load (concat (bijans/emacs-d-file "config/") filename)))
+
 ;; Required package stuff ----------------------------------------------
 
 (require 'package)
@@ -32,7 +42,7 @@
   (if (eq system-type 'darwin)
       (let ((git-command "git clone")
             (package-url "https://github.com/jwiegley/use-package")
-            (package-dir "~/.emacs.d/packages/use-package/"))
+            (package-dir (bijans/emacs-d-file "packages/use-package/")))
         (progn
           (when (not (file-accessible-directory-p package-dir))
             (shell-command (concat git-command " "
@@ -46,19 +56,7 @@
 
 (setq use-package-always-ensure t)
 
-;; Configuration files -------------------------------------------------
-
-(defun bijans/emacs-d-file (filename)
-  "Appends a filename to the user-emacs-directory"
-  (concat user-emacs-directory filename))
-
-(defvar bijans/config-dir
-  (bijans/emacs-d-file "config")
-  "Custom configurations directory.")
-
-(defun bijans/load-config (filename)
-  "Loads a config file from bijans/config-dir"
-  (load (concat bijans/config-dir "/" filename)))
+;; Configuration -------------------------------------------------------
 
 (use-package benchmark-init
   :disabled

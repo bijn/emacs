@@ -3,7 +3,6 @@
 
 *
 
-.DS_Store
 !.gitignore
 !init.el
 !notes
@@ -11,7 +10,8 @@
 !config
 !config/**
 !packages
-!packages/smalltalk-mode.el
+!packages/source
+!packages/source/*.el
 !README.md
 
 **/*.elc

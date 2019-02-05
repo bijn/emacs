@@ -21,6 +21,10 @@
   :pin manual
   :mode ("\\.pl\\'" . prolog-mode))
 
+(use-package sticky-windows
+  :pin manual
+  :load-path (lambda () (bijans/emacs-d-file "packages/source")))
+
 ;; Key binding packages ------------------------------------------------
 
 (use-package which-key
@@ -105,8 +109,18 @@
    "f" '(:keymap bijans/file-map :which-key "files")
    "t" '(:keymap bijans/toggle-map :which-key "toggles")
    "?" '(:keymap help-map :which-key "documentation")
-   "0" 'delete-window
-   "1" 'delete-other-windows
+   "p" '(sticky-window-keep-window-visible
+         :which-key "pin window"); (unpin w prefix arg)")
+   "P" '((lambda ()
+           (interactive)
+           (set-window-dedicated-p (selected-window) nil))
+         :which-key "unpin window")
+   "0" '(sticky-window-delete-window
+         :which-key "delete window")
+   ; ")" '(delete-window :which-key "force delete window")
+   "1" '(sticky-window-delete-other-windows
+         :which-key "delete other windows")
+   "!" '(delete-other-windows :which-key "force delete other windows")
    "2" 'split-window-vertically
    "3" 'split-window-horizontally
    "o" 'other-window
