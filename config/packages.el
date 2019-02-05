@@ -35,20 +35,19 @@
 
 (use-package general
   :demand
-  :custom
-  (general-default-prefix "SPC")
-  (general-default-non-normal-prefix "C-SPC")
-  (general-default-global-prefix "C-SPC")
-  (general-default-keymaps '(evil-normal-state-map
-                             evil-insert-state-map
-                             evil-visual-state-map)))
+  :config
+  (general-create-definer bijans/leader
+    :keymaps '(override)
+    :states '(normal visual insert treemacs)
+    :prefix "SPC"
+    :non-normal-prefix "C-SPC"))
 
 ;; Org mode ------------------------------------------------------------
 
 (use-package org
   :mode ("\\.org\\'" . org-mode)
   :bind (:map bijans/org-map ("a" . org-agenda))
-  :general ("o" '(:keymap bijans/org-map :which-key "org"))
+  :general (bijans/leader "o" '(:keymap bijans/org-map :which-key "org"))
 
   :custom
   (org-agenda-tags-column 0)
@@ -60,10 +59,10 @@
   (defvar bijans/org-map (make-sparse-keymap) "Org shortcuts.")
   (defvar bijans/org-agenda-dir
     (bijans/emacs-d-file "agenda")
-    "Org agenda dir")
-
+    "Org agenda directory")
   (when (file-exists-p bijans/org-agenda-dir)
     (setq org-agenda-files (list bijans/org-agenda-dir)))
+
   (when (display-graphic-p)
     (setq doc-view-continuous t)
     (setq org-pretty-entities t)
@@ -100,12 +99,21 @@
   :bind (:map bijans/buffer-map ("d" . evil-delete-buffer))
 
   :general
-  ("b" '(:keymap bijans/buffer-map :which-key "buffer")
+  (bijans/leader
+   "b" '(:keymap bijans/buffer-map :which-key "buffer")
    "c" '(:keymap bijans/code-map :which-key "code")
    "f" '(:keymap bijans/file-map :which-key "files")
-   "h" '(:keymap bijans/help-map :which-key "help")
    "t" '(:keymap bijans/toggle-map :which-key "toggles")
-   "w" '(:keymap bijans/window-map :which-key "window")
+   "?" '(:keymap help-map :which-key "documentation")
+   "0" 'delete-window
+   "1" 'delete-other-windows
+   "2" 'split-window-vertically
+   "3" 'split-window-horizontally
+   "o" 'other-window
+   "h" 'windmove-left
+   "j" 'windmove-down
+   "k" 'windmove-up
+   "l" 'windmove-right
    "ESC" 'keyboard-quit)
 
   :custom
@@ -123,17 +131,24 @@
                     evil-normal-state-modes
                     evil-motion-state-modes)))
 
-  (use-package evil-surround
-    :demand
-    :bind (:map bijans/toggle-map ("s" . evil-surround-mode))
-    :config (global-evil-surround-mode 1))
-  (use-package evil-magit
-    :after evil magit
-    :hook (magit-mode . evil-magit-init)
-    :custom (evil-magit-use-y-for-yank t))
-  (use-package org-evil :hook (org-mode . org-evil-mode))
+  (add-to-list 'evil-emacs-state-modes 'nav-mode)
 
   (evil-mode 1))
+
+(use-package evil-surround
+  :demand
+  :after evil
+  :bind (:map bijans/toggle-map ("s" . evil-surround-mode))
+  :config (global-evil-surround-mode 1))
+
+(use-package evil-magit
+  :after evil magit
+  :custom (evil-magit-use-y-for-yank t)
+  :config (evil-magit-init))
+
+(use-package org-evil
+  :after org evil
+  :hook (org-mode . org-evil-mode))
 
 ;; Ivy -----------------------------------------------------------------
 
@@ -158,7 +173,7 @@
 
 (use-package counsel
   :bind (:map bijans/file-map ("f" . counsel-find-file))
-  :general ("C-SPC" 'counsel-M-x "SPC" 'counsel-M-x))
+  :general (bijans/leader "C-SPC" 'counsel-M-x "SPC" 'counsel-M-x))
 
 (use-package counsel-projectile
   :bind (:map bijans/file-map ("/" . counsel-projectile-find-file))
@@ -295,16 +310,12 @@
   (ido-mode 1)
   (flx-ido-mode 1))
 
-(use-package neotree
-  :disabled
-  :bind (:map bijans/toggle-map ("n" . neotree-toggle))
-  :config (neotree-mode) (neotree-hide))
-
 (use-package treemacs
   :bind (:map bijans/toggle-map ("n" . treemacs))
   :custom (treemacs-no-png-images t))
 
-(use-package treemacs-evil :after treemacs evil)
+(use-package treemacs-evil
+  :after treemacs evil)
 
 (use-package treemacs-projectile
   :bind (:map bijans/toggle-map ("N" . treemacs-projectile)))
@@ -332,7 +343,7 @@
 
 (use-package undo-tree
   :demand
-  :general ("u" 'undo-tree-visualize))
+  :general (bijans/leader "u" 'undo-tree-visualize))
 
 (use-package yasnippet
   :ensure yasnippet-snippets
@@ -376,7 +387,7 @@
 ;; Other minor modes ---------------------------------------------------
 
 (use-package magit
-  :general ("g" 'magit-status)
+  :general (bijans/leader "g" 'magit-status)
   :custom (magit-completing-read-function 'ivy-completing-read))
 
 (use-package auto-package-update
