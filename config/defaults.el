@@ -28,9 +28,7 @@
 
 (defvar bijans/ctags-path "/usr/bin/ctags" "Path to ctags executable.")
 
-(defvar bijans/buffer-map (make-sparse-keymap) "Buffer shortcuts.")
-(defvar bijans/code-map   (make-sparse-keymap) "Code shortcuts.")
-(defvar bijans/file-map   (make-sparse-keymap) "File shortcuts.")
+(defvar bijans/extras-map (make-sparse-keymap) "Additional shortcuts.")
 (defvar bijans/toggle-map (make-sparse-keymap) "Toggle shortcuts.")
 
 ;; Functions -----------------------------------------------------------
@@ -60,22 +58,29 @@
            (directory-file-name dir-name))))
 
 (defun bijans/read-lines (filePath)
-  "Return a list of lines of a file at filePath. Source: \
-   http://ergoemacs.org/emacs/elisp_read_file_content.html"
+  "Return a list of lines of a file at filePath. Source:
+ http://ergoemacs.org/emacs/elisp_read_file_content.html"
   (with-temp-buffer
     (insert-file-contents filePath)
     (split-string (buffer-string) "\n" t)))
 
+(defun simple-mode-line-render (left right)
+  "Return a string of `window-total-width' length containing LEFT, and
+ RIGHT aligned respectively. Source:
+ https://emacs.stackexchange.com/questions/5529"
+  (let* ((available-width (- (window-total-width)
+                             (+ (length (format-mode-line left))
+                                (length (format-mode-line right))))))
+    (append left
+            (list (format (format "%%%ds" available-width) ""))
+            right)))
+
+(defun bijans/set-mode-line (left right)
+  (setq-default mode-line-format
+                `((:eval (simple-mode-line-render ',left ',right)))))
+
 ;; Default bindings ----------------------------------------------------
 
-(define-key bijans/buffer-map "k" 'kill-buffer)
-(define-key bijans/buffer-map "l" 'list-buffers)
-(define-key bijans/buffer-map "n" 'next-buffer)
-(define-key bijans/buffer-map "p" 'previous-buffer)
-(define-key bijans/buffer-map "s" 'switch-to-buffer)
-(define-key bijans/code-map   "/" 'comment-or-uncomment-region)
-(define-key bijans/file-map   "s" 'save-buffer)
-(define-key bijans/file-map   "w" 'write-file)
 (define-key bijans/toggle-map "l" 'linum-mode)
 (define-key bijans/toggle-map "L" 'hl-line-mode)
 
@@ -126,6 +131,8 @@
 (setq tooltip-delay 99999)
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
+
+(bijans/set-mode-line '("" evil-mode-line-tag "%* %b:%l:%C") '("%m "))
 
 ;; Faces ---------------------------------------------------------------
 

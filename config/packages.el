@@ -44,14 +44,43 @@
     :keymaps '(override)
     :states '(normal visual insert treemacs)
     :prefix "SPC"
-    :non-normal-prefix "C-SPC"))
+    :non-normal-prefix "C-SPC")
+  (bijans/leader
+    "!" '(delete-other-windows :which-key "force delete other windows")
+    "?" '(:keymap help-map :which-key "documentation")
+    "0" 'delete-window
+    "1" '(sticky-window-delete-other-windows
+          :which-key "delete other windows")
+    "2" 'split-window-vertically
+    "3" 'split-window-horizontally
+    "S" 'list-buffers
+    "W" 'write-file
+    "X" '((lambda ()
+            (interactive)
+            (set-window-dedicated-p (selected-window) nil))
+          :which-key "unpin window")
+    "c" 'comment-or-uncomment-region
+    "d" 'kill-buffer
+    "g" '(:keymap bijans/extras-map :which-key "additional shortcuts")
+    "h" 'windmove-left
+    "j" 'windmove-down
+    "k" 'windmove-up
+    "l" 'windmove-right
+    "n" 'next-buffer
+    "o" 'other-window
+    "p" 'previous-buffer
+    "r" 'bijans/ssh
+    "s" 'switch-to-buffer
+    "t" '(:keymap bijans/toggle-map :which-key "toggles")
+    "w" 'save-buffer
+    "x" '(sticky-window-keep-window-visible :which-key "pin window")
+    "ESC" 'keyboard-quit))
 
 ;; Org mode ------------------------------------------------------------
 
 (use-package org
   :mode ("\\.org\\'" . org-mode)
-  :bind (:map bijans/org-map ("a" . org-agenda))
-  :general (bijans/leader "o" '(:keymap bijans/org-map :which-key "org"))
+  :general (bijans/leader "a" 'org-agenda)
 
   :custom
   (org-agenda-tags-column 0)
@@ -100,35 +129,9 @@
 
   :bind (:map evil-visual-state-map ("s" . evil-surround-region))
   :bind (:map evil-insert-state-map ("C-/" . evil-force-normal-state))
-  :bind (:map bijans/buffer-map ("d" . evil-delete-buffer))
 
   :general
-  (bijans/leader
-   "b" '(:keymap bijans/buffer-map :which-key "buffer")
-   "c" '(:keymap bijans/code-map :which-key "code")
-   "f" '(:keymap bijans/file-map :which-key "files")
-   "t" '(:keymap bijans/toggle-map :which-key "toggles")
-   "?" '(:keymap help-map :which-key "documentation")
-   "p" '(sticky-window-keep-window-visible
-         :which-key "pin window"); (unpin w prefix arg)")
-   "P" '((lambda ()
-           (interactive)
-           (set-window-dedicated-p (selected-window) nil))
-         :which-key "unpin window")
-   "0" '(sticky-window-delete-window
-         :which-key "delete window")
-   ; ")" '(delete-window :which-key "force delete window")
-   "1" '(sticky-window-delete-other-windows
-         :which-key "delete other windows")
-   "!" '(delete-other-windows :which-key "force delete other windows")
-   "2" 'split-window-vertically
-   "3" 'split-window-horizontally
-   "o" 'other-window
-   "h" 'windmove-left
-   "j" 'windmove-down
-   "k" 'windmove-up
-   "l" 'windmove-right
-   "ESC" 'keyboard-quit)
+  (bijans/leader "D" 'evil-delete-buffer)
 
   :custom
   (evil-want-C-u-scroll t)
@@ -171,6 +174,7 @@
 ;; http://tinyurl.com/hofdfv8
 
 (use-package ivy
+  :demand
   :bind
   (:map ivy-minibuffer-map
         ("C-j" . ivy-next-line)
@@ -186,11 +190,16 @@
   (ivy-mode 1))
 
 (use-package counsel
-  :bind (:map bijans/file-map ("f" . counsel-find-file))
-  :general (bijans/leader "C-SPC" 'counsel-M-x "SPC" 'counsel-M-x))
+  :demand
+  :general
+  (bijans/leader
+    "C-SPC" 'counsel-M-x
+    "SPC" 'counsel-M-x
+    "F" 'counsel-find-file))
 
 (use-package counsel-projectile
-  :bind (:map bijans/file-map ("/" . counsel-projectile-find-file))
+  :after counsel
+  :general (bijans/leader "f" 'counsel-projectile-find-file)
   :config (counsel-projectile-mode))
 
 ;; UI ------------------------------------------------------------------
@@ -221,6 +230,7 @@
   :config (smooth-scrolling-mode 1))
 
 (use-package spaceline
+  :disabled
   :demand
   :when (display-graphic-p)
   :custom (powerline-default-separator nil)
@@ -268,9 +278,10 @@
 ;; Programming ---------------------------------------------------------
 
 (use-package clang-format
-  :bind (:map bijans/code-map ("=" . clang-format-buffer)))
+  :general (bijans/leader "=" 'clang-format-buffer))
 
 (use-package compile
+  :disabled
   :bind (:map bijans/code-map ("m" . compile))
   :bind (:map bijans/code-map ("r" . recompile))
   :bind (:map bijans/code-map ("s" . recompile-silent))
@@ -289,14 +300,17 @@
 (use-package flycheck-clang-tidy
   :hook (flycheck-mode-hook . flycheck-clang-tidy-setup))
 
+;; look into more at http://cedet.sourceforge.net/
+(use-package semantic :hook (prog-mode . semantic-mode))
+
 (use-package xcscope
   :when (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
   :bind
-  (:map bijans/code-map ("f" . cscope-find-this-symbol))
-  (:map bijans/code-map
+  (:map bijans/extras-map
         ("i" . (lambda ()
                  (interactive)
                  (cscope-index-files cscope-initial-directory))))
+  :general (bijans/leader "/" 'cscope-find-this-symbol)
   :config (cscope-setup)
   :custom (cscope-index-recursively t)
   :custom-face
@@ -325,6 +339,7 @@
   (flx-ido-mode 1))
 
 (use-package treemacs
+  :after ivy
   :bind (:map bijans/toggle-map ("n" . treemacs))
   :custom (treemacs-no-png-images t))
 
@@ -335,6 +350,7 @@
   :bind (:map bijans/toggle-map ("N" . treemacs-projectile)))
 
 (use-package projectile
+  :demand
   :config (projectile-mode))
 
 ;; Text manipulation ---------------------------------------------------
@@ -401,8 +417,12 @@
 ;; Other minor modes ---------------------------------------------------
 
 (use-package magit
-  :general (bijans/leader "g" 'magit-status)
+  :bind (:map bijans/extras-map ("g" . magit-status))
   :custom (magit-completing-read-function 'ivy-completing-read))
 
 (use-package auto-package-update
   :commands auto-package-update-maybe)
+
+(use-package ace-window
+  :custom (aw-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
+  :general (bijans/leader "o" 'ace-window))
