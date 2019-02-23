@@ -5,7 +5,7 @@
 ;; Constants -----------------------------------------------------------
 
 (defconst bijans/backup-dir
-  (concat user-emacs-directory "/backups")
+  (concat user-emacs-directory "/backups/")
   "Emacs backup directory.")
 
 (defconst bijans/colors-bg "#222430" "Background color.")
@@ -64,6 +64,15 @@
     (insert-file-contents filePath)
     (split-string (buffer-string) "\n" t)))
 
+(defun bijans/comment-or-uncomment ()
+  "Comment or uncomment current line.
+ Source https://stackoverflow.com/questions/9688748"
+  (interactive)
+  (if (region-active-p)
+      (comment-or-uncomment-region (region-beginning) (region-end))
+    (comment-or-uncomment-region (line-beginning-position)
+                                 (line-end-position))))
+
 (defun simple-mode-line-render (left right)
   "Return a string of `window-total-width' length containing LEFT, and
  RIGHT aligned respectively. Source:
@@ -79,10 +88,26 @@
   (setq-default mode-line-format
                 `((:eval (simple-mode-line-render ',left ',right)))))
 
+(defmacro bijans/bind-general-hydra (leader-key hydra-name &rest others)
+  "Binds to leader-key and creates a hydra with the same bindings."
+  (dolist (other others)
+    (let ((binding (car other))
+          (fn (cadr other))
+          (docstring (caddr other)))
+      (if docstring
+          (eval `(,leader-key ,binding '(,fn :which-key ,docstring)))
+        (eval `(,leader-key ,binding ',fn)))))
+  `(defhydra ,hydra-name (:hint nil) ,@others ("q" nil "quit")))
+
 ;; Default bindings ----------------------------------------------------
 
+(define-key bijans/extras-map "r" '(lambda ()
+                                     (interactive)
+                                     (load-file
+                                      (bijans/emacs-d-file "init.el"))))
 (define-key bijans/toggle-map "l" 'linum-mode)
 (define-key bijans/toggle-map "L" 'hl-line-mode)
+(define-key bijans/toggle-map "W" 'winner-mode)
 
 ;; Settings ------------------------------------------------------------
 
@@ -132,7 +157,15 @@
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 
-(bijans/set-mode-line '("" evil-mode-line-tag "%* %b:%l:%C") '("%m "))
+;; add prepend/append mode line functions
+(bijans/set-mode-line '("" evil-mode-line-tag ;; move to evil config
+                        "%* %b:%l:"
+                        (:eval (format "%d" (1+ (current-column)))))
+                      '((:eval (if (window-dedicated-p) "x" "."))
+                        " %m "))
+
+(winner-mode 1)
+(electric-pair-mode 1)
 
 ;; Faces ---------------------------------------------------------------
 

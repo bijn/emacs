@@ -25,6 +25,11 @@
   :pin manual
   :load-path (lambda () (bijans/emacs-d-file "packages/source")))
 
+(use-package smalltalk-mode
+  :pin manual
+  :load-path (lambda () (bijans/emacs-d-file "packages/source"))
+  :mode ("\\.st\\'" . smalltalk-mode))
+
 ;; Key binding packages ------------------------------------------------
 
 (use-package which-key
@@ -35,7 +40,25 @@
   :config
   (define-key help-map "\C-h" 'which-key-C-h-dispatch)
   (which-key-setup-side-window-bottom)
-  (which-key-mode))
+  (which-key-mode)
+  (which-key-add-key-based-replacements
+    "SPC g i" "cscope index project"
+    "SPC g r" "reload config"))
+
+(use-package hydra
+  :config
+  (defhydra bijans/hydra-scale-up (:hint nil)
+    ("+" text-scale-increase)
+    ("-" bijans/hydra-scale-down/body :exit t)
+    ("h" evil-window-increase-width)
+    ("v" evil-window-increase-height)
+    ("q" nil))
+  (defhydra bijans/hydra-scale-down (:hint nil)
+    ("+" bijans/hydra-scale-up/body :exit t)
+    ("-" text-scale-decrease)
+    ("h" evil-window-decrease-width)
+    ("v" evil-window-decrease-height)
+    ("q" nil)))
 
 (use-package general
   :demand
@@ -45,36 +68,50 @@
     :states '(normal visual insert treemacs)
     :prefix "SPC"
     :non-normal-prefix "C-SPC")
-  (bijans/leader
-    "!" '(delete-other-windows :which-key "force delete other windows")
-    "?" '(:keymap help-map :which-key "documentation")
-    "0" 'delete-window
-    "1" '(sticky-window-delete-other-windows
-          :which-key "delete other windows")
-    "2" 'split-window-vertically
-    "3" 'split-window-horizontally
-    "S" 'list-buffers
-    "W" 'write-file
-    "X" '((lambda ()
+
+  (bijans/bind-general-hydra
+   bijans/leader
+   bijans/hydra-nav
+   ("!" delete-other-windows "force delete other windows")
+   ("0" delete-window "delete window")
+   ("1" sticky-window-delete-other-windows "delete other windows")
+   ("2" split-window-vertically "vertical split")
+   ("3" split-window-horizontally "horizontal split")
+   ("4" ace-swap-window "swap windows")
+   ("8" winner-undo "undo window change")
+   ("9" winner-redo "redo window change")
+   ("B" list-buffers "list buffers")
+   ("b" switch-to-buffer "switch buffer")
+   ("d" kill-buffer "close buffer")
+   ("h" windmove-left "window move left")
+   ("j" windmove-down "window move down")
+   ("k" windmove-up "window move up")
+   ("l" windmove-right "window move right")
+   ("n" next-buffer "next buffer")
+   ("o" other-window "move to next window")
+   ("x" (lambda ()
             (interactive)
-            (set-window-dedicated-p (selected-window) nil))
-          :which-key "unpin window")
-    "c" 'comment-or-uncomment-region
-    "d" 'kill-buffer
+            (if (window-dedicated-p)
+                (set-window-dedicated-p (selected-window) nil)
+              (set-window-dedicated-p (selected-window) t))
+            (force-mode-line-update)) "toggle pin window")
+   ("p" previous-buffer "previous buffer"))
+
+  (bijans/leader
+    "?" '(:keymap help-map :which-key "documentation")
+    "+" '(bijans/hydra-scale-up/body :which-key "scale up mode")
+    "-" '(bijans/hydra-scale-down/body :which-key "scale down mode")
+    "W" '(write-file :which-key "save as")
+    "`" '(term :which-key "terminal")
+    "c" '(bijans/comment-or-uncomment :which-key "toggle comment")
     "g" '(:keymap bijans/extras-map :which-key "additional shortcuts")
-    "h" 'windmove-left
-    "j" 'windmove-down
-    "k" 'windmove-up
-    "l" 'windmove-right
-    "n" 'next-buffer
-    "o" 'other-window
-    "p" 'previous-buffer
-    "r" 'bijans/ssh
-    "s" 'switch-to-buffer
+    "r" '(bijans/ssh :which-key "ssh")
     "t" '(:keymap bijans/toggle-map :which-key "toggles")
-    "w" 'save-buffer
-    "x" '(sticky-window-keep-window-visible :which-key "pin window")
-    "ESC" 'keyboard-quit))
+    "w" '(save-buffer :which-key "save")
+    "ESC" '(keyboard-quit :which-key "cancel")
+    "C-g" '(keyboard-quit "cancel"))
+
+    (define-key bijans/extras-map "w" 'bijans/hydra-nav/body))
 
 ;; Org mode ------------------------------------------------------------
 
@@ -130,8 +167,7 @@
   :bind (:map evil-visual-state-map ("s" . evil-surround-region))
   :bind (:map evil-insert-state-map ("C-/" . evil-force-normal-state))
 
-  :general
-  (bijans/leader "D" 'evil-delete-buffer)
+  :general (bijans/leader "D" 'evil-delete-buffer)
 
   :custom
   (evil-want-C-u-scroll t)
@@ -189,6 +225,9 @@
   :config
   (ivy-mode 1))
 
+(use-package swiper
+  :general (bijans/leader "/" 'counsel-git-grep "C-/" 'swiper))
+
 (use-package counsel
   :demand
   :general
@@ -213,7 +252,21 @@
   :init (setq cwm-centered-window-width 77))
 
 (use-package column-enforce-mode
-  :bind (:map bijans/toggle-map ("m" . column-enforce-mode))
+  :bind
+  (:map bijans/toggle-map
+        ("m" . column-enforce-mode)
+        ("M" . (lambda ()
+                 (interactive)
+                 (if (not (bound-and-true-p column-enforce-mode))
+                     (progn
+                       (when (eq nil (member 'column-enforce-mode
+                                             prog-mode-hook))
+                         (add-hook 'prog-mode-hook
+                                   'column-enforce-mode))
+                       (column-enforce-mode 1))
+                   (global-column-enforce-mode 0)
+                   (remove-hook 'prog-mode-hook
+                                'column-enforce-mode)))))
   :hook prog-mode
   :custom (column-enforce-column 72))
 
@@ -260,9 +313,9 @@
                         :foreground dracula/fg)))
 
 (use-package tabbar
-  :bind (:map bijans/toggle-map ("t" . tabbar-mode))
+  :bind (:map bijans/toggle-map ("b" . tabbar-mode))
   :custom
-  (tabbar-buffer-home-button (cons (cons " + " nil) (cons " - " nil)))
+  (tabbar-buffer-home-button (cons (cons " - " nil) (cons " + " nil)))
   (tabbar-scroll-left-button (cons (cons " < " nil) (cons " - " nil)))
   (tabbar-scroll-right-button (cons (cons " > " nil) (cons " - " nil)))
   (tabbar-use-images nil)
@@ -278,7 +331,8 @@
 ;; Programming ---------------------------------------------------------
 
 (use-package clang-format
-  :general (bijans/leader "=" 'clang-format-buffer))
+  :bind (:map bijans/extras-map ("=" . clang-format-buffer))
+  :general (bijans/leader "=" 'clang-format-region))
 
 (use-package compile
   :disabled
@@ -301,7 +355,18 @@
   :hook (flycheck-mode-hook . flycheck-clang-tidy-setup))
 
 ;; look into more at http://cedet.sourceforge.net/
-(use-package semantic :hook (prog-mode . semantic-mode))
+(use-package semantic
+  :hook (prog-mode . semantic-mode)
+  :config
+  (global-semantic-idle-scheduler-mode 1)
+  (global-ede-mode 1))
+
+(use-package auto-complete
+  :hook (prog-mode . auto-complete-mode)
+  :config
+  (ac-config-default)
+  (add-hook 'c-mode-common-hook
+            '(lambda () (add-to-list 'ac-sources 'ac-source-semantic))))
 
 (use-package xcscope
   :when (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
@@ -309,8 +374,8 @@
   (:map bijans/extras-map
         ("i" . (lambda ()
                  (interactive)
-                 (cscope-index-files cscope-initial-directory))))
-  :general (bijans/leader "/" 'cscope-find-this-symbol)
+                 (cscope-index-files cscope-initial-directory)))
+        ("/" . cscope-find-this-symbol))
   :config (cscope-setup)
   :custom (cscope-index-recursively t)
   :custom-face
@@ -340,7 +405,7 @@
 
 (use-package treemacs
   :after ivy
-  :bind (:map bijans/toggle-map ("n" . treemacs))
+  :bind (:map bijans/toggle-map ("t" . treemacs))
   :custom (treemacs-no-png-images t))
 
 (use-package treemacs-evil
@@ -385,13 +450,20 @@
       (make-directory snippet-dir))
     (setq yas-snippet-dirs snippet-dir)))
 
+(use-package iedit
+  :general (bijans/leader "i" 'iedit-mode))
+
+(use-package evil-iedit-state
+  :after evil iedit
+  :hook iedit-mode)
+
 ;; Other major modes ---------------------------------------------------
 
 (use-package bats-mode
   :mode ("\\.bats\\'" . bats-mode))
 
 (use-package cmake-mode
-  :mode (("\\.txt\\'" . cmake-mode) ("\\.cmake\\'" . cmake-mode)))
+  :mode (("CMakeLists.txt" . cmake-mode) ("\\.cmake\\'" . cmake-mode)))
 
 (use-package docker
   :disabled
@@ -424,5 +496,5 @@
   :commands auto-package-update-maybe)
 
 (use-package ace-window
-  :custom (aw-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
+  :custom (aw-keys '(?h ?t ?n ?s ?u ?e ?o ?a))
   :general (bijans/leader "o" 'ace-window))
