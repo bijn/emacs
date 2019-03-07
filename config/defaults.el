@@ -171,7 +171,7 @@
 
 (when (display-graphic-p)
   (set-face-attribute 'default nil
-                      :family "Courier New"
+                      :family "Consolas"
                       :height 90
                       :weight 'normal)
 
