@@ -11,6 +11,8 @@
 (use-package linum
   :pin manual
   :hook (prog-mode . linum-mode)
+  :bind (:map bijans/toggle-map ("l" . linum-mode))
+  :bind (:map bijans/toggle-map ("L" . global-linum-mode))
   :custom (linum-format "%4d "))
 
 (use-package hideshow
@@ -78,7 +80,12 @@
    ("2" split-window-vertically "vertical split")
    ("3" split-window-horizontally "horizontal split")
    ("4" ace-swap-window "swap windows")
-   ("8" winner-undo "undo window change")
+   ("8" (lambda ()
+          (interactive)
+          (when (bound-and-true-p centered-window-mode)
+            (centered-window-mode 0))
+          (winner-undo))
+    "undo window change and disable centered window")
    ("9" winner-redo "redo window change")
    ("B" list-buffers "list buffers")
    ("b" switch-to-buffer "switch buffer")
@@ -271,7 +278,7 @@
   :custom (column-enforce-column 72))
 
 (use-package hlinum
-  :demand
+  :bind (:map bijans/toggle-map ("h" . hl-line-mode))
   :custom (linum-highlight-in-all-buffersp t)
   :config
   (hlinum-activate)

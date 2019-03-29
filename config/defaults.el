@@ -99,15 +99,36 @@
         (eval `(,leader-key ,binding ',fn)))))
   `(defhydra ,hydra-name (:hint nil) ,@others ("q" nil "quit")))
 
+;; make this a toggle
+;; need to make winner undo lambda better
+;; treemacs/other modes?
+(defun bijans/zen ()
+  (interactive)
+  (delete-other-windows)
+  (when (bound-and-true-p linum-mode)
+    (global-linum-mode 0))
+  (when (bound-and-true-p tabbar-mode)
+    (tabbar-mode 0))
+  (when (not (bound-and-true-p centered-window-mode))
+    (centered-window-mode 1)))
+
+(defun bijans/kill-non-visible-buffers ()
+  (interactive)
+  (dolist (buffer (buffer-list))
+    (when (not (get-buffer-window buffer))
+      (kill-buffer buffer))))
+
 ;; Default bindings ----------------------------------------------------
 
 (define-key bijans/extras-map "r" '(lambda ()
                                      (interactive)
                                      (load-file
                                       (bijans/emacs-d-file "init.el"))))
-(define-key bijans/toggle-map "l" 'linum-mode)
-(define-key bijans/toggle-map "L" 'hl-line-mode)
-(define-key bijans/toggle-map "W" 'winner-mode)
+
+(define-key bijans/extras-map "d" 'bijans/kill-non-visible-buffers)
+
+(define-key bijans/toggle-map "U" 'winner-mode)
+(define-key bijans/toggle-map "z" 'bijans/zen)
 
 ;; Settings ------------------------------------------------------------
 
