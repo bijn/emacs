@@ -128,6 +128,7 @@
 (define-key bijans/extras-map "d" 'bijans/kill-non-visible-buffers)
 
 (define-key bijans/toggle-map "U" 'winner-mode)
+(define-key bijans/toggle-map "$" 'toggle-truncate-lines)
 (define-key bijans/toggle-map "z" 'bijans/zen)
 
 ;; Settings ------------------------------------------------------------

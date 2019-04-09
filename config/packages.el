@@ -193,6 +193,11 @@
 
   (add-to-list 'evil-emacs-state-modes 'nav-mode)
 
+  (evil-define-operator evil-comment (beg end type register)
+    (interactive "<R><x>")
+    (comment-or-uncomment-region beg end))
+  (bijans/leader "c" 'evil-comment)
+
   (evil-mode 1))
 
 (use-package evil-surround
@@ -338,8 +343,13 @@
 ;; Programming ---------------------------------------------------------
 
 (use-package clang-format
+  :hook c++-mode
   :bind (:map bijans/extras-map ("=" . clang-format-buffer))
-  :general (bijans/leader "=" 'clang-format-region))
+  :config
+  (evil-define-operator evil-clang-format-region (beg end type register)
+    (interactive "<R><x>")
+    (clang-format-region beg end))
+  (bijans/leader "=" 'evil-clang-format-region))
 
 (use-package compile
   :disabled
