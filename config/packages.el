@@ -112,6 +112,7 @@
     "`" '(term :which-key "terminal")
     "c" '(bijans/comment-or-uncomment :which-key "toggle comment")
     "g" '(:keymap bijans/extras-map :which-key "additional shortcuts")
+    "m" '(:keymap bijans/code-map :which-key "additional shortcuts")
     "r" '(bijans/ssh :which-key "ssh")
     "t" '(:keymap bijans/toggle-map :which-key "toggles")
     "w" '(save-buffer :which-key "save")
@@ -344,16 +345,28 @@
 
 (use-package clang-format
   :hook c++-mode
-  :bind (:map bijans/extras-map ("=" . clang-format-buffer))
   :config
   (evil-define-operator evil-clang-format-region (beg end type register)
     (interactive "<R><x>")
     (clang-format-region beg end))
-  (bijans/leader "=" 'evil-clang-format-region))
+  (bijans/leader "=" 'clang-format-buffer)
+  ;; might override = binding outside of c++-mode
+  (evil-define-key
+    nil evil-normal-state-map "=" 'evil-clang-format-region))
 
 (use-package compile
-  :disabled
-  :bind (:map bijans/code-map ("m" . compile))
+  :after projectile
+  :bind
+  (:map bijans/code-map
+        ("m" . (lambda (command)
+                 (interactive "sCommand: ")
+                 (when (projectile-project-root)
+                   (cd (projectile-project-root))
+                   (when (file-exists-p "CMakeLists.txt")
+                     (when (not (file-accessible-directory-p "build"))
+                       (make-directory "build"))
+                     (cd "build")
+                     (compile command))))))
   :bind (:map bijans/code-map ("r" . recompile))
   :bind (:map bijans/code-map ("s" . recompile-silent))
   :custom (compile-command "make")

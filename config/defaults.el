@@ -28,6 +28,7 @@
 
 (defvar bijans/ctags-path "/usr/bin/ctags" "Path to ctags executable.")
 
+(defvar bijans/code-map (make-sparse-keymap) "Code shortcuts.")
 (defvar bijans/extras-map (make-sparse-keymap) "Additional shortcuts.")
 (defvar bijans/toggle-map (make-sparse-keymap) "Toggle shortcuts.")
 
@@ -120,6 +121,8 @@
 
 ;; Default bindings ----------------------------------------------------
 
+(define-key bijans/code-map "g" 'gdb)
+
 (define-key bijans/extras-map "r" '(lambda ()
                                      (interactive)
                                      (load-file
@@ -132,6 +135,9 @@
 (define-key bijans/toggle-map "z" 'bijans/zen)
 
 ;; Settings ------------------------------------------------------------
+
+;; GDB
+(add-hook 'gdb-mode-hook 'gdb-many-windows)
 
 ;; Organize messy ~backup files into one folder.
 (setq backup-directory-alist `((".*" . ,bijans/backup-dir)))
