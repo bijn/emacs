@@ -284,6 +284,7 @@
   :custom (column-enforce-column 72))
 
 (use-package hlinum
+  :demand
   :bind (:map bijans/toggle-map ("h" . hl-line-mode))
   :custom (linum-highlight-in-all-buffersp t)
   :config
@@ -356,26 +357,57 @@
 
 (use-package compile
   :after projectile
+  :defines compile-directory
+  :functions bijans/compile bijans/recompile bijans/recompile-silent
+
   :bind
-  (:map bijans/code-map
-        ("m" . (lambda (command)
-                 (interactive "sCommand: ")
-                 (when (projectile-project-root)
-                   (cd (projectile-project-root))
-                   (when (file-exists-p "CMakeLists.txt")
-                     (when (not (file-accessible-directory-p "build"))
-                       (make-directory "build"))
-                     (cd "build")
-                     (compile command))))))
-  :bind (:map bijans/code-map ("r" . recompile))
-  :bind (:map bijans/code-map ("s" . recompile-silent))
-  :custom (compile-command "make")
+  (:map bijans/code-map ("m" . bijans/compile))
+  (:map bijans/code-map ("r" . bijans/recompile))
+  (:map bijans/code-map ("s" . bijans/recompile-silent))
+
+  :custom
+  (compile-command "cmake --build .")
+  (compilation-scroll-output 'first-error)
+
   :config
-  (defun recompile-silent ()
-    "Re-compile without changing the window configuration.
-       https://www.emacswiki.org/emacs/CompileCommand"
+  (defcustom compile-directory "." "Compilation directory")
+  (defun bijans/compile (command directory)
+    "Runs COMMAND in DIRECTORY. If directory is empty, will attempt
+to find and create a CMake build directory or will use the current
+directory"
+    (interactive (list (read-string "Command: " compile-command)
+                       (read-string "Directory: " compile-directory)))
+    (setq compile-command command)
+    (setq compile-directory directory)
+    (when (or (not compile-directory)
+              (= (length compile-directory) 0))
+      (message "No build directory specified.")
+      (setq compile-directory ".")
+      (when (projectile-project-root)
+        (let* ((root-dir (projectile-project-root))
+               (cmake-file (concat root-dir "CMakeLists.txt"))
+               (build-dir (concat root-dir "build")))
+          (when (file-exists-p cmake-file)
+              (setq compile-directory build-dir)))))
+    (message "Compile command: %s" compile-command)
+    (message "Compile directory: %s" compile-directory)
+    (let ((curdir default-directory))
+      (when (not (file-accessible-directory-p compile-directory))
+        (when (yes-or-no-p (format "%s does not exist. Create? "
+                                   compile-directory))
+          (make-directory compile-directory t)))
+      (cd compile-directory)
+      (compile compile-command)
+      (cd curdir)))
+  (defun bijans/recompile ()
+    "Calls bijans/compile without prompting."
     (interactive)
-    (save-window-excursion (recompile))))
+    (bijans/compile compile-command compile-directory))
+  (defun bijans/recompile-silent ()
+    "Re-compile without changing the window configuration.
+https://www.emacswiki.org/emacs/CompileCommand"
+    (interactive)
+    (save-window-excursion (bijans/recompile))))
 
 (use-package flycheck
   :defer t ; not being deferred by bind keyword
