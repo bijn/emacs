@@ -376,7 +376,8 @@
 to find and create a CMake build directory or will use the current
 directory"
     (interactive (list (read-string "Command: " compile-command)
-                       (read-string "Directory: " compile-directory)))
+                       (read-directory-name "Directory: 
+                                            " compile-directory)))
     (setq compile-command command)
     (setq compile-directory directory)
     (when (or (not compile-directory)
