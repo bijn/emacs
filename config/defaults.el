@@ -123,12 +123,12 @@
 
 (define-key bijans/code-map "g" 'gdb)
 
+(define-key bijans/extras-map "d" 'bijans/kill-non-visible-buffers)
+(define-key bijans/extras-map "n" 'make-frame)
 (define-key bijans/extras-map "r" '(lambda ()
                                      (interactive)
                                      (load-file
                                       (bijans/emacs-d-file "init.el"))))
-
-(define-key bijans/extras-map "d" 'bijans/kill-non-visible-buffers)
 
 (define-key bijans/toggle-map "U" 'winner-mode)
 (define-key bijans/toggle-map "$" 'toggle-truncate-lines)
@@ -185,12 +185,17 @@
 
 (add-to-list 'auto-mode-alist '("\\.h\\'" . c++-mode))
 
+(defcustom bijans/build-status "" "Build status for mode line.")
+
 ;; add prepend/append mode line functions
 (bijans/set-mode-line '("" evil-mode-line-tag ;; move to evil config
                         "%* %b:%l:"
                         (:eval (format "%d" (1+ (current-column)))))
-                      '((:eval (if (window-dedicated-p) "x" "."))
-                        " %m "))
+                      '("%m "
+                        (:eval (if (string-empty-p bijans/build-status)
+                                   bijans/build-status
+                                 (concat bijans/build-status " ")))
+                        (:eval (if (window-dedicated-p) "x " ". "))))
 
 (winner-mode 1)
 (electric-pair-mode 1)

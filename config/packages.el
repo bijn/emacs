@@ -79,7 +79,7 @@
    ("1" sticky-window-delete-other-windows "delete other windows")
    ("2" split-window-vertically "vertical split")
    ("3" split-window-horizontally "horizontal split")
-   ("4" ace-swap-window "swap windows")
+   ("7" ace-swap-window "swap windows")
    ("8" (lambda ()
           (interactive)
           (when (bound-and-true-p centered-window-mode)
@@ -97,19 +97,19 @@
    ("n" next-buffer "next buffer")
    ("o" other-window "move to next window")
    ("x" (lambda ()
-            (interactive)
-            (if (window-dedicated-p)
-                (set-window-dedicated-p (selected-window) nil)
-              (set-window-dedicated-p (selected-window) t))
-            (force-mode-line-update)) "toggle pin window")
+          (interactive)
+          (if (window-dedicated-p)
+              (set-window-dedicated-p (selected-window) nil)
+            (set-window-dedicated-p (selected-window) t))
+          (force-mode-line-update)) "toggle pin window")
    ("p" previous-buffer "previous buffer"))
 
   (bijans/leader
     "?" '(:keymap help-map :which-key "documentation")
     "+" '(bijans/hydra-scale-up/body :which-key "scale up mode")
     "-" '(bijans/hydra-scale-down/body :which-key "scale down mode")
+    "`" '(shell :which-key "shell")
     "W" '(write-file :which-key "save as")
-    "`" '(term :which-key "terminal")
     "c" '(bijans/comment-or-uncomment :which-key "toggle comment")
     "g" '(:keymap bijans/extras-map :which-key "additional shortcuts")
     "m" '(:keymap bijans/code-map :which-key "additional shortcuts")
@@ -119,7 +119,23 @@
     "ESC" '(keyboard-quit :which-key "cancel")
     "C-g" '(keyboard-quit "cancel"))
 
-    (define-key bijans/extras-map "w" 'bijans/hydra-nav/body))
+  (define-key bijans/extras-map "w" 'bijans/hydra-nav/body))
+
+(use-package multi-term
+  :when (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
+  :general
+  (bijans/leader
+    "`" '((lambda (directory)
+            (interactive
+             (list (read-directory-name "Directory: "
+                                        default-directory)))
+            (let ((tmp-buffer (get-buffer-create "*tmp*")))
+              (switch-to-buffer-other-window tmp-buffer)
+              (cd directory)
+              (multi-term)))
+          :which-key "terminal"))
+  :custom
+  (multi-term-program (when (eq system-type 'darwin) "/bin/bash")))
 
 ;; Org mode ------------------------------------------------------------
 
@@ -198,6 +214,16 @@
     (interactive "<R><x>")
     (comment-or-uncomment-region beg end))
   (bijans/leader "c" 'evil-comment)
+
+  (add-hook
+   'term-mode-hook
+   (lambda ()
+     (evil-normal-state)
+     (add-hook 'evil-insert-state-entry-hook 'term-char-mode nil t)
+     (add-hook 'evil-insert-state-exit-hook 'term-line-mode nil t)))
+
+  (evil-define-key 'normal term-mode-map
+    (kbd "<return>") 'term-send-input)
 
   (evil-mode 1))
 
@@ -345,15 +371,14 @@
 ;; Programming ---------------------------------------------------------
 
 (use-package clang-format
-  :hook c++-mode
+  :after evil
   :config
   (evil-define-operator evil-clang-format-region (beg end type register)
     (interactive "<R><x>")
     (clang-format-region beg end))
   (bijans/leader "=" 'clang-format-buffer)
-  ;; might override = binding outside of c++-mode
   (evil-define-key
-    nil evil-normal-state-map "=" 'evil-clang-format-region))
+    'normal c++-mode-map "=" 'evil-clang-format-region))
 
 (use-package compile
   :after projectile
@@ -370,28 +395,40 @@
   (compilation-scroll-output 'first-error)
 
   :config
-  (defcustom compile-directory "." "Compilation directory")
+  (defcustom compile-directory "" "Compilation directory")
+
+  (add-hook 'compilation-start-hook
+            (lambda (process)
+              (setq bijans/build-status "building")))
+  (add-to-list 'compilation-finish-functions
+               (lambda (process status)
+                 (setq bijans/build-status
+                       (let ((chomped-status (string-trim status)))
+                         (message "%s" chomped-status)
+                         (if (string= chomped-status "finished")
+                             "success"
+                           "failure")))))
+
   (defun bijans/compile (command directory)
     "Runs COMMAND in DIRECTORY. If directory is empty, will attempt
 to find and create a CMake build directory or will use the current
 directory"
-    (interactive (list (read-string "Command: " compile-command)
-                       (read-directory-name "Directory: 
-                                            " compile-directory)))
+    (interactive
+     (progn
+       (when (or (not compile-directory)
+                 (= (length compile-directory) 0))
+         (setq compile-directory ".")
+         (when (projectile-project-root)
+           (let* ((root-dir (projectile-project-root))
+                  (cmake-file (concat root-dir "CMakeLists.txt"))
+                  (build-dir (concat root-dir "build")))
+             (when (file-exists-p cmake-file)
+               (setq compile-directory build-dir)))))
+       (list (read-string "Command: " compile-command)
+             (read-directory-name "Directory: "
+                                  compile-directory))))
     (setq compile-command command)
     (setq compile-directory directory)
-    (when (or (not compile-directory)
-              (= (length compile-directory) 0))
-      (message "No build directory specified.")
-      (setq compile-directory ".")
-      (when (projectile-project-root)
-        (let* ((root-dir (projectile-project-root))
-               (cmake-file (concat root-dir "CMakeLists.txt"))
-               (build-dir (concat root-dir "build")))
-          (when (file-exists-p cmake-file)
-              (setq compile-directory build-dir)))))
-    (message "Compile command: %s" compile-command)
-    (message "Compile directory: %s" compile-directory)
     (let ((curdir default-directory))
       (when (not (file-accessible-directory-p compile-directory))
         (when (yes-or-no-p (format "%s does not exist. Create? "
@@ -549,6 +586,9 @@ https://www.emacswiki.org/emacs/CompileCommand"
 (use-package yaml-mode
   :mode ("\\.yml\\'" . yaml-mode))
 
+(use-package glsl-mode
+  :mode (("\\.fs\\'" . glsl-mode) ("\\.vs\\'" . glsl-mode)))
+
 ;; Other minor modes ---------------------------------------------------
 
 (use-package magit
@@ -559,5 +599,5 @@ https://www.emacswiki.org/emacs/CompileCommand"
   :commands auto-package-update-maybe)
 
 (use-package ace-window
-  :custom (aw-keys '(?h ?t ?n ?s ?u ?e ?o ?a))
+  :custom (aw-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
   :general (bijans/leader "o" 'ace-window))
