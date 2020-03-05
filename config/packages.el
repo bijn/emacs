@@ -8,6 +8,53 @@
 
 ;; Builtins ------------------------------------------------------------
 
+;; want to add projectile based configs. project local hooks?
+;; - for buffer local hooks see `LOCAL' parameter in `add-hook'
+(use-package json
+  :pin manual
+  :functions bijans/read-json-config
+  :config
+  (defun bijans/set-key (key value &rest args)
+    (let* ((symbol (intern-soft key))
+           (allocator (plist-get args :allocator))
+           (hook (plist-get args :hook)))
+      (if allocator
+          (allocator symbol value)
+        (if hook
+            (let ((does-contain (member symbol (eval hook))))
+              (when (string= "off" value)
+                (when does-contain
+                  (remove-hook hook `,symbol)))
+              (when (string= "on" value)
+                (when (not does-contain)
+                  (add-hook hook `,symbol))))
+          (progn
+            (set symbol value))))))
+
+  (defun bijans/set-hash (map hash &rest args)
+    (apply 'bijans/set-key hash (gethash hash map) args))
+
+  (defun bijans/read-json-config (&optional directory)
+    (let* ((project-root (if directory
+                             directory
+                           user-emacs-directory))
+           (json-object-type 'hash-table)
+           (json-array-type 'list)
+           (json-key-type 'string)
+           (config-file (concat project-root "config.json"))
+           (config-map
+            (if (file-exists-p config-file)
+                (json-read-file config-file)
+              nil)))
+      (when config-map
+        (dolist (key (map-keys config-map))
+          (let ((rules (gethash key bijans/json-rules)))
+            (if rules
+                (apply #'bijans/set-hash
+                       (loop for arg in (append `(,config-map ,key) rules)
+                             collect arg))
+              (bijans/set-hash config-map key))))))))
+
 (use-package linum
   :pin manual
   :hook (prog-mode . linum-mode)
@@ -49,13 +96,13 @@
 
 (use-package hydra
   :config
-  (defhydra bijans/hydra-scale-up (:hint nil)
+  (defhydra bijans/hydra-scale-up (:hint "")
     ("+" text-scale-increase)
     ("-" bijans/hydra-scale-down/body :exit t)
     ("h" evil-window-increase-width)
     ("v" evil-window-increase-height)
     ("q" nil))
-  (defhydra bijans/hydra-scale-down (:hint nil)
+  (defhydra bijans/hydra-scale-down (:hint "")
     ("+" bijans/hydra-scale-up/body :exit t)
     ("-" text-scale-decrease)
     ("h" evil-window-decrease-width)
@@ -108,7 +155,7 @@
     "?" '(:keymap help-map :which-key "documentation")
     "+" '(bijans/hydra-scale-up/body :which-key "scale up mode")
     "-" '(bijans/hydra-scale-down/body :which-key "scale down mode")
-    "`" '(shell :which-key "shell")
+    "`" '(eshell :which-key "shell")
     "W" '(write-file :which-key "save as")
     "c" '(bijans/comment-or-uncomment :which-key "toggle comment")
     "g" '(:keymap bijans/extras-map :which-key "additional shortcuts")
@@ -165,13 +212,10 @@
   :config
   (when (eq system-type 'darwin)
     (setq org-latex-create-formula-image-program 'imagemagick)
-    (use-package cl
-      :demand
-      :ensure cl-lib)
-    (use-package org-drill
-      :demand
-      :ensure org-plus-contrib
-      :pin manual))
+    (use-package cl :ensure cl-lib)
+    (use-package org-drill :ensure org-plus-contrib :pin manual))
+
+  (use-package pamparam)
 
   (dolist (face '(org-level-1
                   org-level-2
@@ -382,20 +426,35 @@
 
 (use-package compile
   :after projectile
-  :defines compile-directory
-  :functions bijans/compile bijans/recompile bijans/recompile-silent
+  :defines compile-directory bijans/compile-registers
+
+  :functions
+  bijans/compile
+  bijans/quick-compile
+  bijans/quick-compile-record
+  bijans/recompile
+  bijans/recompile-silent
 
   :bind
+  (:map bijans/code-map ("@" . bijans/quick-compile))
+  (:map bijans/code-map ("q" . bijans/quick-compile-record))
   (:map bijans/code-map ("m" . bijans/compile))
   (:map bijans/code-map ("r" . bijans/recompile))
   (:map bijans/code-map ("s" . bijans/recompile-silent))
+
+  :general
+  (bijans/leader "@" 'bijans/quick-compile)
+  (bijans/leader "q" 'bijans/quick-compile-record)
 
   :custom
   (compile-command "cmake --build .")
   (compilation-scroll-output 'first-error)
 
   :config
-  (defcustom compile-directory "" "Compilation directory")
+  (defcustom compile-directory "" "Compilation directory.")
+
+  (defcustom bijans/quick-compile-map
+    (make-hash-table) "Compilation shortcuts.")
 
   (add-hook 'compilation-start-hook
             (lambda (process)
@@ -409,24 +468,39 @@
                              "success"
                            "failure")))))
 
-  (defun bijans/compile (command directory)
+  (defun bijans/set-compile-parameters (&optional command directory)
+    (interactive)
+    (when (or (not compile-directory)
+              (= (length compile-directory) 0))
+        (setq compile-directory ".")
+        (when (projectile-project-root)
+          (let* ((root-dir (projectile-project-root))
+                 (cmake-file (concat root-dir "CMakeLists.txt"))
+                 (build-dir (concat root-dir "build")))
+            (when (file-exists-p cmake-file)
+              (setq compile-directory build-dir)))))
+    (list (read-string "Command: " compile-command)
+          (read-directory-name "Directory: "
+                               compile-directory)))
+
+  (defun bijans/quick-compile (key)
+    (interactive (list (read-event)))
+    (let ((command-pair (gethash key bijans/quick-compile-map)))
+      (if command-pair
+          (bijans/compile (car command-pair) (cadr command-pair))
+        (bijans/quick-compile-record key))))
+
+  (defun bijans/quick-compile-record (key)
+    (interactive (list (read-event)))
+    (let ((param-list (bijans/set-compile-parameters)))
+      (puthash key param-list bijans/quick-compile-map)
+      (bijans/compile (car param-list) (cadr param-list))))
+
+  (defun bijans/compile (&optional command directory)
     "Runs COMMAND in DIRECTORY. If directory is empty, will attempt
 to find and create a CMake build directory or will use the current
 directory"
-    (interactive
-     (progn
-       (when (or (not compile-directory)
-                 (= (length compile-directory) 0))
-         (setq compile-directory ".")
-         (when (projectile-project-root)
-           (let* ((root-dir (projectile-project-root))
-                  (cmake-file (concat root-dir "CMakeLists.txt"))
-                  (build-dir (concat root-dir "build")))
-             (when (file-exists-p cmake-file)
-               (setq compile-directory build-dir)))))
-       (list (read-string "Command: " compile-command)
-             (read-directory-name "Directory: "
-                                  compile-directory))))
+    (interactive (bijans/set-compile-parameters))
     (setq compile-command command)
     (setq compile-directory directory)
     (let ((curdir default-directory))
@@ -437,10 +511,12 @@ directory"
       (cd compile-directory)
       (compile compile-command)
       (cd curdir)))
+
   (defun bijans/recompile ()
     "Calls bijans/compile without prompting."
     (interactive)
     (bijans/compile compile-command compile-directory))
+
   (defun bijans/recompile-silent ()
     "Re-compile without changing the window configuration.
 https://www.emacswiki.org/emacs/CompileCommand"
@@ -456,6 +532,7 @@ https://www.emacswiki.org/emacs/CompileCommand"
 
 ;; look into more at http://cedet.sourceforge.net/
 (use-package semantic
+  :disabled
   :hook (prog-mode . semantic-mode)
   :config
   (global-semantic-idle-scheduler-mode 1)
@@ -470,22 +547,20 @@ https://www.emacswiki.org/emacs/CompileCommand"
 
 (use-package xcscope
   :when (or (eq system-type 'darwin) (eq system-type 'gnu/linux))
+  :defines cscope-initial-directory
+  :functions cscope-index-files
   :bind
   (:map bijans/extras-map
         ("i" . (lambda ()
                  (interactive)
-                 (cscope-index-files cscope-initial-directory)))
+                 (cscope-index-files (projectile-project-root))))
         ("/" . cscope-find-this-symbol))
   :config (cscope-setup)
   :custom (cscope-index-recursively t)
   :custom-face
   (cscope-separator-face
    ((nil (:foreground nil :underline nil :overline nil))))
-  :hook
-  (c++-mode . (lambda ()
-                (setq cscope-initial-directory
-                      (projectile-project-root))
-                (cscope-minor-mode))))
+  :init (add-hook 'c-mode-common-hook 'cscope-minor-mode))
 
 ;; File manipulation ---------------------------------------------------
 
@@ -566,7 +641,8 @@ https://www.emacswiki.org/emacs/CompileCommand"
   :mode (("CMakeLists.txt" . cmake-mode) ("\\.cmake\\'" . cmake-mode)))
 
 (use-package docker
-  :disabled
+  :mode (("Dockerfile" . dockerfile-mode)
+         ("\\.docker\\'" . dockerfile-mode))
   :ensure docker-tramp
   :ensure dockerfile-mode)
 
@@ -589,6 +665,9 @@ https://www.emacswiki.org/emacs/CompileCommand"
 (use-package glsl-mode
   :mode (("\\.fs\\'" . glsl-mode) ("\\.vs\\'" . glsl-mode)))
 
+(use-package pdf-tools
+  :mode (("\\.pdf\\'" . pdf-view-mode)))
+
 ;; Other minor modes ---------------------------------------------------
 
 (use-package magit
@@ -601,3 +680,5 @@ https://www.emacswiki.org/emacs/CompileCommand"
 (use-package ace-window
   :custom (aw-keys '(?a ?o ?e ?u ?i ?d ?h ?t ?n ?s))
   :general (bijans/leader "o" 'ace-window))
+
+(use-package vagrant-tramp :functions 'vagrant-tramp-term)

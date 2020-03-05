@@ -32,6 +32,9 @@
 (defvar bijans/extras-map (make-sparse-keymap) "Additional shortcuts.")
 (defvar bijans/toggle-map (make-sparse-keymap) "Toggle shortcuts.")
 
+(defvar bijans/json-rules (make-hash-table :test 'equal) "JSON configuration test.")
+(puthash "delete-trailing-whitespace" '(:hook before-save-hook) bijans/json-rules)
+
 ;; Functions -----------------------------------------------------------
 
 (defun bijans/ssh-edit (login file)
@@ -203,23 +206,21 @@
 ;; Faces ---------------------------------------------------------------
 
 (when (display-graphic-p)
-  (set-face-attribute 'default nil
-                      :family "Consolas"
-                      :height 90
-                      :weight 'normal)
-
   (cond ((eq system-type 'darwin)
-         (set-face-attribute 'default nil :height 120)
-         (let ((default-family "Andale Mono")
-               (iosevka-font "Iosevka Term")
-               (iosevka-weight 'light))
-           (if (not (null (x-list-fonts iosevka-font)))
-               (set-face-attribute 'default nil
-                                   :font iosevka-font
-                                   :weight iosevka-weight)
-             (set-face-attribute 'default nil
-                                 :family default-family))))
-
+         (set-face-attribute 'default nil
+                             :height 120
+                             :family  "Andale Mono"))
+         ;; (let ((default-family "Andale Mono")
+         ;;       (iosevka-font "Iosevka Term")
+         ;;       (iosevka-weight 'light))
+         ;;   (if (not (null (x-list-fonts iosevka-font)))
+         ;;       (set-face-attribute 'default nil
+         ;;                           :font iosevka-font
+         ;;                           :weight iosevka-weight)
+         ;;     (set-face-attribute 'default nil
+         ;;                         :family default-family))))
+         ;;     (set-face-attribute 'default nil
+         ;;                         :family default-family))))
         ((eq system-type 'gnu/linux)
          (let ((os-info "/etc/os-release")
                (arch-os "arch")
@@ -234,4 +235,8 @@
                    ((string-match-p ubuntu-os line)
                     (set-face-attribute 'default nil
                                         :family ubuntu-family
-                                        :height ubuntu-height))))))))
+                                        :height ubuntu-height))))))
+        (t (set-face-attribute 'default nil
+                               :family "Consolas"
+                               :height 90
+                               :weight 'normal))))
