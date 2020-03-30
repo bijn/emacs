@@ -224,14 +224,16 @@
         ((eq system-type 'gnu/linux)
          (let ((os-info "/etc/os-release")
                (arch-os "arch")
-               (arch-family "Adobe Courier")
+               (arch-family "Source Code Pro")
+               (arch-height 90)
                (ubuntu-os "ubuntu")
                (ubuntu-family "Monospace")
                (ubuntu-height 100))
            (dolist (line (bijans/read-lines os-info))
              (cond ((string-match-p arch-os line)
                     (set-face-attribute 'default nil
-                                        :family arch-family))
+                                        :family arch-family
+                                        :height arch-height))
                    ((string-match-p ubuntu-os line)
                     (set-face-attribute 'default nil
                                         :family ubuntu-family
